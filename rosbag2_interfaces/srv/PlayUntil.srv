@@ -1,0 +1,8 @@
+# See rosbag2_transport::PlayOptions::start_offset
+builtin_interfaces/Time start_offset
+# See rosbag2_transport::PlayOptions::playback_duration
+# It will be set as the difference of playback_until with the
+# effective playback start time point.
+builtin_interfaces/Time playback_until
+---
+bool success  # return true

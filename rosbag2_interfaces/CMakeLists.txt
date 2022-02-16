@@ -18,6 +18,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Pause.srv"
   "srv/Play.srv"
   "srv/PlayNext.srv"
+  "srv/PlayUntil.srv"
   "srv/Resume.srv"
   "srv/Seek.srv"
   "srv/SetRate.srv"

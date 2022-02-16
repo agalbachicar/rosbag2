@@ -685,6 +685,19 @@ void Player::create_control_services()
     {
       response->success = play_next();
     });
+  srv_play_until_ = create_service<rosbag2_interfaces::srv::PlayUntil>(
+    "~/play_until",
+    [this](
+      const std::shared_ptr<rmw_request_id_t>/* request_header */,
+      const std::shared_ptr<rosbag2_interfaces::srv::PlayUntil::Request> request,
+      const std::shared_ptr<rosbag2_interfaces::srv::PlayUntil::Response> response)
+    {
+      play_options_.start_offset = rclcpp::Time(request->start_offset).nanoseconds();
+      const rcutils_time_point_value_t play_until_time =
+      rclcpp::Time(request->playback_until).nanoseconds();
+      play_options_.playback_duration = rclcpp::Duration(play_until_time - starting_time_);
+      response->success = play();
+    });
   srv_seek_ = create_service<rosbag2_interfaces::srv::Seek>(
     "~/seek",
     [this](
