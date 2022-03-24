@@ -325,7 +325,6 @@ TEST_F(
   EXPECT_THAT(replayed_test_primitives, SizeIs(0u));
 
   auto replayed_test_arrays = sub_->get_received_messages<test_msgs::msg::Arrays>("/topic2");
-  // All messages should have arrived.
   EXPECT_THAT(replayed_test_arrays, SizeIs(0u));
 }
 

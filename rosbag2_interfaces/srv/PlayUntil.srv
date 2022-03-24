@@ -5,4 +5,5 @@ builtin_interfaces/Time start_offset
 # effective playback start time point.
 builtin_interfaces/Time playback_until
 ---
-bool success  # return true
+# returns false when another playback execution is running, otherwise true
+bool success
