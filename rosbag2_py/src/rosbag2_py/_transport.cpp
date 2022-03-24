@@ -134,6 +134,42 @@ public:
     PlayOptions & play_options)
   {
     auto reader = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
+    do_play(std::move(reader), storage_options, play_options);
+  }
+
+  void play_until(
+    const rosbag2_storage::StorageOptions & storage_options,
+    PlayOptions & play_options,
+    const double & play_until_timestamp)
+  {
+    auto reader = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
+    play_options.playback_duration = PlayerUtilsExtension::compute_starting_time_point(
+      reader.get(), play_options.start_offset, play_until_timestamp);
+    do_play(std::move(reader), storage_options, play_options);
+  }
+
+private:
+  class PlayerUtilsExtension : public rosbag2_transport::Player
+  {
+public:
+    static rclcpp::Duration compute_starting_time_point(
+      const rosbag2_cpp::Reader * reader,
+      const rcutils_time_point_value_t & start_offset,
+      const double & play_until_timestamp)
+    {
+      const rcutils_time_point_value_t starting_time =
+        rosbag2_transport::Player::compute_starting_time_point(reader, start_offset);
+      const rcutils_time_point_value_t playback_until_time_point =
+        static_cast<rcutils_time_point_value_t>(RCUTILS_S_TO_NS(play_until_timestamp));
+      return rclcpp::Duration::from_nanoseconds(playback_until_time_point - starting_time);
+    }
+  };
+
+  void do_play(
+    std::unique_ptr<rosbag2_cpp::Reader> reader,
+    const rosbag2_storage::StorageOptions & storage_options,
+    PlayOptions & play_options)
+  {
     auto player = std::make_shared<rosbag2_transport::Player>(
       std::move(reader), storage_options, play_options);
 
@@ -291,6 +327,9 @@ PYBIND11_MODULE(_transport, m) {
   py::class_<rosbag2_py::Player>(m, "Player")
   .def(py::init())
   .def("play", &rosbag2_py::Player::play, py::arg("storage_options"), py::arg("play_options"))
+  .def(
+    "play_until", &rosbag2_py::Player::play_until, py::arg("storage_options"),
+    py::arg("play_options"), py::arg("play_until_timestamp"))
   ;
 
   py::class_<rosbag2_py::Recorder>(m, "Recorder")

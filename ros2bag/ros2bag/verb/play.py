@@ -85,10 +85,17 @@ class PlayVerb(VerbExtension):
         parser.add_argument(
             '-d', '--delay', type=positive_float, default=0.0,
             help='Sleep duration before play (each loop), in seconds. Negative durations invalid.')
-        parser.add_argument(
+
+        playback_group = parser.add_mutually_exclusive_group()
+        playback_group.add_argument(
             '--playback_duration', type=float, default=-1.0,
             help='Playback duration, in seconds. Negative durations mark an infinite playback. '
-                 'Default is -1.0.')
+                 'This option is mutually exclusive with --playback_until. Default is -1.0.')
+        playback_group.add_argument(
+            '--playback_until', type=float, default=-1.0,
+            help='Playback until time point, in seconds. Negative time points disable this option. '
+                 'This option is mutually exclusive with --playback_duration. Default is -1.0.')
+
         parser.add_argument(
             '--disable-keyboard-controls', action='store_true',
             help='disables keyboard controls for playback')
@@ -151,4 +158,7 @@ class PlayVerb(VerbExtension):
         play_options.wait_acked_timeout = args.wait_for_all_acked
 
         player = Player()
-        player.play(storage_options, play_options)
+        if args.playback_until >= 0:
+            player.play_until(storage_options, play_options, args.playback_until)
+        else:
+            player.play(storage_options, play_options)

@@ -53,6 +53,7 @@ public:
   ~TSAUniqueLock() RCPPUTILS_TSA_RELEASE() {}
 };
 
+
 /**
  * Determine which QoS to offer for a topic.
  * The priority of the profile selected is:
@@ -87,6 +88,19 @@ rclcpp::QoS publisher_qos_for_topic(
 
 namespace rosbag2_transport
 {
+
+rcutils_time_point_value_t Player::compute_starting_time_point(
+  const rosbag2_cpp::Reader * reader,
+  const rcutils_time_point_value_t & starting_offset)
+{
+  auto metadata = reader->get_metadata();
+  auto starting_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    metadata.starting_time.time_since_epoch()).count();
+  if (starting_offset > 0) {
+    starting_time += starting_offset;
+  }
+  return starting_offset;
+}
 
 Player::Player(const std::string & node_name, const rclcpp::NodeOptions & node_options)
 : rclcpp::Node(node_name, node_options)
@@ -139,19 +153,13 @@ Player::Player(
     reader_ = std::move(reader);
     // keep reader open until player is destroyed
     reader_->open(storage_options_, {"", rmw_get_serialization_format()});
-    auto metadata = reader_->get_metadata();
-    starting_time_ = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      metadata.starting_time.time_since_epoch()).count();
-    // If a non-default (positive) starting time offset is provided in PlayOptions,
-    // then add the offset to the starting time obtained from reader metadata
+    starting_time_ = compute_starting_time_point(reader_.get(), play_options_.start_offset);
     if (play_options_.start_offset < 0) {
       RCLCPP_WARN_STREAM(
         get_logger(),
         "Invalid start offset value: " <<
           RCUTILS_NS_TO_S(static_cast<double>(play_options_.start_offset)) <<
           ". Negative start offset ignored.");
-    } else {
-      starting_time_ += play_options_.start_offset;
     }
     clock_ = std::make_unique<rosbag2_cpp::TimeControllerClock>(
       starting_time_, std::chrono::steady_clock::now,
@@ -692,10 +700,10 @@ void Player::create_control_services()
       const std::shared_ptr<rosbag2_interfaces::srv::PlayUntil::Request> request,
       const std::shared_ptr<rosbag2_interfaces::srv::PlayUntil::Response> response)
     {
-      play_options_.start_offset = rclcpp::Time(request->start_offset).nanoseconds();
       const rcutils_time_point_value_t play_until_time =
       rclcpp::Time(request->playback_until).nanoseconds();
-      play_options_.playback_duration = rclcpp::Duration(play_until_time - starting_time_);
+      play_options_.playback_duration =
+      rclcpp::Duration::from_nanoseconds(play_until_time - starting_time_);
       response->success = play();
     });
   srv_seek_ = create_service<rosbag2_interfaces::srv::Seek>(

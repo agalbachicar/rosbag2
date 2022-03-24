@@ -145,6 +145,17 @@ public:
   void seek(rcutils_time_point_value_t time_point);
 
 protected:
+  /// \brief Computes the starting time point given the reader's metadata starting point and
+  /// and offset.
+  /// \details When \p starting_offset is negative, the return value is the reader's metadata
+  /// starting point. Else, \p starting_offset is added.
+  /// \param reader The Reader to extract metadata from.
+  /// \param starting_offset The time offset to use. Usually, it is PlayOptions::starting_offset.
+  /// \return The resulting starting time point for playback.
+  static rcutils_time_point_value_t compute_starting_time_point(
+    const rosbag2_cpp::Reader * reader,
+    const rcutils_time_point_value_t & starting_offset);
+
   bool is_ready_to_play_from_queue_{false};
   std::mutex ready_to_play_from_queue_mutex_;
   std::condition_variable ready_to_play_from_queue_cv_;
