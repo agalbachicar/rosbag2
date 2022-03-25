@@ -25,6 +25,7 @@
 #include "rosbag2_interfaces/srv/pause.hpp"
 #include "rosbag2_interfaces/srv/resume.hpp"
 #include "rosbag2_interfaces/srv/toggle_paused.hpp"
+#include "rosbag2_interfaces/srv/play_until.hpp"
 #include "rosbag2_transport/player.hpp"
 #include "test_msgs/msg/basic_types.hpp"
 #include "test_msgs/message_fixtures.hpp"
@@ -43,6 +44,7 @@ public:
   using GetRate = rosbag2_interfaces::srv::GetRate;
   using SetRate = rosbag2_interfaces::srv::SetRate;
   using PlayNext = rosbag2_interfaces::srv::PlayNext;
+  using PlayUntil = rosbag2_interfaces::srv::PlayUntil;
 
   PlaySrvsTest()
   : RosBag2PlayTestFixture(),
@@ -70,6 +72,7 @@ public:
     cli_get_rate_ = client_node_->create_client<GetRate>(ns + "/get_rate");
     cli_set_rate_ = client_node_->create_client<SetRate>(ns + "/set_rate");
     cli_play_next_ = client_node_->create_client<PlayNext>(ns + "/play_next");
+    cli_play_until_ = client_node_->create_client<PlayUntil>(ns + "/play_until");
     topic_sub_ = client_node_->create_subscription<test_msgs::msg::BasicTypes>(
       test_topic_, 10,
       std::bind(&PlaySrvsTest::topic_callback, this, std::placeholders::_1));
@@ -89,6 +92,7 @@ public:
     ASSERT_TRUE(cli_get_rate_->wait_for_service(service_wait_timeout_));
     ASSERT_TRUE(cli_set_rate_->wait_for_service(service_wait_timeout_));
     ASSERT_TRUE(cli_play_next_->wait_for_service(service_wait_timeout_));
+    ASSERT_TRUE(cli_play_until_->wait_for_service(service_wait_timeout_));
   }
 
   /// Call a service client, and expect it to successfully return within a reasonable timeout
@@ -223,6 +227,7 @@ public:
   rclcpp::Client<GetRate>::SharedPtr cli_get_rate_;
   rclcpp::Client<SetRate>::SharedPtr cli_set_rate_;
   rclcpp::Client<PlayNext>::SharedPtr cli_play_next_;
+  rclcpp::Client<PlayUntil>::SharedPtr cli_play_until_;
 
   // Mechanism to check on playback status
   rclcpp::Subscription<test_msgs::msg::BasicTypes>::SharedPtr topic_sub_;
@@ -346,4 +351,21 @@ TEST_F(PlaySrvsTest, play_next) {
   play_next_response = successful_call<PlayNext>(cli_play_next_);
   ASSERT_FALSE(play_next_response->success);
   expect_messages(true);
+}
+
+TEST_F(PlaySrvsTest, play_until_playback_covers_all_msgs) {
+  ASSERT_TRUE(player_->is_paused());
+  PlayUntil::Request::SharedPtr request = std::make_shared<PlayUntil::Request>();
+  request->playback_until.nanosec = static_cast<uint32_t>(
+    RCUTILS_MS_TO_NS((num_msgs_to_publish_ + 5u) * ms_between_msgs_));
+
+  // Check that we will be able to play all messages via play_until
+  {
+    std::lock_guard<std::mutex> lk(got_msg_mutex_);
+    message_counter_ = 0;
+  }
+  auto play_until_response = successful_call<PlayUntil>(cli_play_until_, request);
+  ASSERT_TRUE(play_until_response->success);
+  expect_messages(true, false);
+  ASSERT_EQ(num_msgs_to_publish_, message_counter_);
 }

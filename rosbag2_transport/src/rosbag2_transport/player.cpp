@@ -704,6 +704,8 @@ void Player::create_control_services()
       rclcpp::Time(request->playback_until).nanoseconds();
       play_options_.playback_duration =
       rclcpp::Duration::from_nanoseconds(play_until_time - starting_time_);
+      RCLCPP_INFO_STREAM(get_logger(), "Play until request->playback_until: " << request->playback_until);
+      RCLCPP_INFO_STREAM(get_logger(), "Play until play_options_.playback_duration: " << play_options_.playback_duration.nanoseconds());
       response->success = play();
     });
   srv_seek_ = create_service<rosbag2_interfaces::srv::Seek>(
